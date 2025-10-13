@@ -1,0 +1,35 @@
+{
+  "name": "historial-clinico-mern",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Historial Clinico MERN",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "nodemon backend/server.js",
+    "start": "node backend/server.js",
+    "start:prod": "cross-env NODE_ENV=production TRUST_PROXY=1 PORT=8080 node backend/server.js",
+    "seed:admin": "node backend/scripts/seedAdmin.js",
+    "health": "curl -s http://localhost:${PORT:-8080}/api/health || exit 1",
+    "test": "echo \"No hay tests aun\" && exit 0"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.3.0",
+    "express-validator": "^7.2.1",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.18.1",
+    "morgan": "^1.10.1",
+    "nodemailer": "^7.0.9"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "nodemon": "^3.1.10"
+  }
+}
