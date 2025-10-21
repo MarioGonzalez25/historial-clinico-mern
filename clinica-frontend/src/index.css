@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fondo con gradiente del login */
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 20% 15%, #a78bfa22 0%, transparent 60%),
+    radial-gradient(1000px 700px at 85% 85%, #f0abfc22 0%, transparent 60%),
+    linear-gradient(135deg, #a78bfa 0%, #8b5cf6 45%, #c084fc 100%);
+}
