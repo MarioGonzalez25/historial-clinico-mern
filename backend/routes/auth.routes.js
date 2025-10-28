@@ -7,7 +7,6 @@ import { authorize } from '../middleware/authorize.js';
 
 // ✅ Rate limiting (por endpoint)
 import {
-  loginLimiter,
   forgotLimiter,
   resetLimiter
 } from '../middleware/rateLimiters.js';
@@ -44,7 +43,6 @@ const router = Router();
 // POST /api/auth/login
 router.post(
   '/login',
-  loginLimiter,
   [...emailV, ...passwordV],
   validate,
   login

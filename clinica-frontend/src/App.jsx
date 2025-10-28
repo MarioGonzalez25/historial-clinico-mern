@@ -7,6 +7,11 @@ import ProtectedRoute from "./components/layout/ProtectedRoute";
 import NuevoPaciente from "./pages/pacientes/NuevoPaciente";
 import NuevaCita from "./pages/citas/NuevaCita";
 import ConsultarHistorial from "./pages/historial/ConsultarHistorial";
+import RegistrarEvolucion from "./pages/historial/RegistrarEvolucion";
+import Usuarios from "./pages/usuarios/Usuarios";
+import Reportes from "./pages/reportes/Reportes";
+import NotasRapidas from "./pages/notas/NotasRapidas";
+import ListaCitas from "./pages/citas/ListaCitas";
 
 export default function App() {
   return (
@@ -44,10 +49,50 @@ export default function App() {
           )}
         />
         <Route
+          path="/citas"
+          element={(
+            <ProtectedRoute roles={["ADMIN", "MEDICO", "ASISTENTE"]}>
+              <ListaCitas />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
           path="/historial/consultar"
           element={(
             <ProtectedRoute roles={["ADMIN", "MEDICO", "ASISTENTE"]}>
               <ConsultarHistorial />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/historial/evolucion"
+          element={(
+            <ProtectedRoute roles={["ADMIN", "MEDICO"]}>
+              <RegistrarEvolucion />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/notas/rapidas"
+          element={(
+            <ProtectedRoute roles={["MEDICO"]}>
+              <NotasRapidas />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/usuarios"
+          element={(
+            <ProtectedRoute roles={["ADMIN"]}>
+              <Usuarios />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/reportes"
+          element={(
+            <ProtectedRoute roles={["ADMIN"]}>
+              <Reportes />
             </ProtectedRoute>
           )}
         />

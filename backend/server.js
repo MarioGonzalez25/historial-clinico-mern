@@ -12,6 +12,9 @@ import { globalLimiter } from './middleware/rateLimiters.js';
 import authRoutes from './routes/auth.routes.js';
 import pacientesRoutes from './routes/pacientes.routes.js';
 import citasRoutes from './routes/citas.routes.js';
+import historialRoutes from './routes/historial.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
+import usersRoutes from './routes/users.routes.js';
 
 // Middlewares
 import { requireAuth } from './middleware/auth.js';
@@ -62,6 +65,9 @@ app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/pacientes', pacientesRoutes);
 app.use('/api/citas', citasRoutes);
+app.use('/api/historial', historialRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/users', usersRoutes);
 
 // Ejemplo privado
 app.get('/private/hello', requireAuth, (req, res) => {

@@ -1,8 +1,48 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Toaster, toast } from "react-hot-toast";
 import RoleDashboard from "../components/dashboard/RoleDashboard";
 import { useAuthStore } from "../store/auth";
+import { DashboardAPI } from "../api/dashboard";
 
-const CONFIGS = {
+const numberFormatter = new Intl.NumberFormat("es-GT");
+
+function formatNumber(value) {
+  if (typeof value !== "number" || Number.isNaN(value)) return "—";
+  return numberFormatter.format(value);
+}
+
+const STATUS_META = {
+  PENDIENTE: { label: "Pendiente", className: "bg-amber-100 text-amber-700" },
+  CONFIRMADA: { label: "Confirmada", className: "bg-emerald-100 text-emerald-600" },
+  ATENDIDA: { label: "Atendida", className: "bg-slate-100 text-slate-600" },
+  CANCELADA: { label: "Cancelada", className: "bg-rose-100 text-rose-500" },
+  NO_ASISTIO: { label: "No asistió", className: "bg-rose-100 text-rose-500" },
+};
+
+function buildSchedule(agenda = []) {
+  return agenda.map((item) => {
+    const start = item?.inicio ? new Date(item.inicio) : null;
+    const period = start && start.getHours() < 12 ? "AM" : "PM";
+    const time = start
+      ? start.toLocaleTimeString("es-GT", { hour: "2-digit", minute: "2-digit" })
+      : "--:--";
+    const statusMeta = STATUS_META[item.estado] || { label: item.estado || "Programada", className: "bg-slate-100 text-slate-600" };
+
+    return {
+      timePeriod: period || "--",
+      time,
+      patient: item?.paciente?.nombre || "Paciente por asignar",
+      description:
+        item?.motivo ||
+        (item?.doctor?.nombre ? `Atención con ${item.doctor.nombre}` : "Consulta programada"),
+      status: statusMeta.label,
+      statusClass: statusMeta.className,
+    };
+  });
+}
+
+const ROLE_BASE = {
   ADMIN: {
     roleLabel: "Administrador",
     subtitle: "Panel general del sistema",
@@ -22,36 +62,33 @@ const CONFIGS = {
     ],
     stats: [
       {
-        label: "Total pacientes",
-        value: "245",
+        key: "pacientes",
+        label: "Pacientes activos",
         icon: "👨‍👩‍👧",
         iconClass: "bg-violet-100 text-violet-600",
-        trend: "+12 vs. el mes pasado",
-        trendClass: "text-violet-600",
+        trendBuilder: (totals) => `+${formatNumber(totals.nuevosPacientes7d || 0)} últimos 7 días`,
       },
       {
+        key: "citasHoy",
         label: "Citas hoy",
-        value: "12",
         icon: "📅",
         iconClass: "bg-rose-100 text-rose-600",
-        trend: "4 en seguimiento",
-        trendClass: "text-rose-500",
+        trendBuilder: (totals) => `${formatNumber(totals.citasPendientesHoy || 0)} por atender`,
       },
       {
-        label: "Esta semana",
-        value: "48",
+        key: "citasSemana",
+        label: "Citas esta semana",
         icon: "🗓️",
         iconClass: "bg-indigo-100 text-indigo-600",
-        trend: "Agenda al 72%",
-        trendClass: "text-indigo-600",
+        trend: "Agenda global",
       },
       {
-        label: "Nuevos ingresos",
-        value: "5",
-        icon: "✨",
+        key: "usuarios",
+        label: "Usuarios activos",
+        icon: "🧑‍⚕️",
         iconClass: "bg-emerald-100 text-emerald-600",
-        trend: "3 referidos",
-        trendClass: "text-emerald-600",
+        trendBuilder: (totals) =>
+          `Médicos ${formatNumber(totals.medicos || 0)} · Asistentes ${formatNumber(totals.asistentes || 0)}`,
       },
     ],
     quickActions: [
@@ -61,6 +98,7 @@ const CONFIGS = {
         title: "Nuevo paciente",
         subtitle: "Registrar ficha y datos del tutor",
         wrapperClass: "hover:bg-violet-50/80",
+        to: "/pacientes/nuevo",
       },
       {
         icon: "📅",
@@ -68,6 +106,7 @@ const CONFIGS = {
         title: "Nueva cita",
         subtitle: "Asignar médico y consultorio",
         wrapperClass: "hover:bg-rose-50/80",
+        to: "/citas/nueva",
       },
       {
         icon: "🧑‍⚕️",
@@ -75,6 +114,7 @@ const CONFIGS = {
         title: "Gestionar usuarios",
         subtitle: "Crear o suspender cuentas",
         wrapperClass: "hover:bg-indigo-50/80",
+        to: "/usuarios",
       },
       {
         icon: "📊",
@@ -82,6 +122,7 @@ const CONFIGS = {
         title: "Ver reportes",
         subtitle: "Indicadores de servicio",
         wrapperClass: "hover:bg-emerald-50/80",
+        to: "/reportes",
       },
     ],
     permissions: {
@@ -94,45 +135,25 @@ const CONFIGS = {
       ],
       limits: ["Acceso completo. Usa con responsabilidad."],
     },
-    scheduleSummary: "4 citas",
-    schedule: [
-      {
-        timePeriod: "AM",
-        time: "09:00",
-        patient: "Ana María López",
-        description: "Control pediátrico - Dr. Pérez",
-        status: "Confirmada",
-        statusClass: "bg-emerald-100 text-emerald-600",
-      },
-      {
-        timePeriod: "AM",
-        time: "11:30",
-        patient: "Luis Herrera",
-        description: "Vacunación",
-        status: "En sala de espera",
-        statusClass: "bg-amber-100 text-amber-700",
-      },
-      {
-        timePeriod: "PM",
-        time: "15:00",
-        patient: "Valeria Gómez",
-        description: "Consulta de seguimiento",
-        status: "Pendiente",
-        statusClass: "bg-sky-100 text-sky-700",
-      },
-      {
-        timePeriod: "PM",
-        time: "17:30",
-        patient: "Ignacio Rivas",
-        description: "Evaluación nutricional",
-        status: "Confirmada",
-        statusClass: "bg-emerald-100 text-emerald-600",
-      },
-    ],
-    reminder: {
-      title: "Recordatorio",
-      headline: "Revisa los reportes semanales",
-      body: "Analiza la ocupación de consultorios y el rendimiento de tu equipo para ajustar la programación del fin de semana.",
+    reminderBuilder: ({ proximas }) => {
+      if (!proximas || proximas.length === 0) {
+        return {
+          title: "Recordatorio",
+          headline: "Agenda al día",
+          body: "Programa revisiones periódicas para mantener los indicadores de servicio en verde.",
+        };
+      }
+      const next = proximas[0];
+      const start = next.inicio ? new Date(next.inicio) : null;
+      const readable = start
+        ? start.toLocaleString("es-GT", { dateStyle: "medium", timeStyle: "short" })
+        : "Próximamente";
+      const status = STATUS_META[next.estado]?.label || next.estado || "Programada";
+      return {
+        title: "Próxima cita",
+        headline: `${next?.paciente?.nombre || "Paciente"} · ${readable}`,
+        body: `${status}${next?.motivo ? ` · ${next.motivo}` : ""}`,
+      };
     },
     accent: {
       badge: "bg-gradient-to-r from-violet-100/90 to-rose-100/80 text-violet-700",
@@ -141,6 +162,7 @@ const CONFIGS = {
       permissionsLimit: { bullet: "bg-rose-400" },
       reminder: "bg-gradient-to-br from-violet-100 to-rose-100 border-violet-200/60",
     },
+    scheduleAction: { title: "Ver agenda completa", to: "/citas" },
   },
   MEDICO: {
     roleLabel: "Médico",
@@ -159,36 +181,32 @@ const CONFIGS = {
     ],
     stats: [
       {
-        label: "Pacientes activos",
-        value: "82",
-        icon: "🩺",
-        iconClass: "bg-sky-100 text-sky-600",
-        trend: "+5 en seguimiento",
-        trendClass: "text-sky-600",
-      },
-      {
+        key: "citasHoy",
         label: "Citas hoy",
-        value: "6",
         icon: "⏰",
         iconClass: "bg-cyan-100 text-cyan-600",
-        trend: "2 virtuales",
-        trendClass: "text-cyan-600",
+        trendBuilder: (totals) => `${formatNumber(totals.citasPendientesHoy || 0)} pendientes`,
       },
       {
-        label: "Pendientes",
-        value: "9",
+        key: "citasSemana",
+        label: "Agenda semanal",
+        icon: "🗓️",
+        iconClass: "bg-indigo-100 text-indigo-600",
+        trend: "Incluye teleconsultas",
+      },
+      {
+        key: "evolucionesSemana",
+        label: "Evoluciones registradas",
         icon: "📝",
         iconClass: "bg-indigo-100 text-indigo-600",
-        trend: "Actualizar notas",
-        trendClass: "text-indigo-600",
+        trend: "Semana actual",
       },
       {
-        label: "Satisfacción",
-        value: "4.9",
-        icon: "💙",
-        iconClass: "bg-emerald-100 text-emerald-600",
-        trend: "Top 5 del mes",
-        trendClass: "text-emerald-600",
+        key: "nuevosPacientes7d",
+        label: "Pacientes nuevos",
+        icon: "🩺",
+        iconClass: "bg-sky-100 text-sky-600",
+        trend: "Últimos 7 días",
       },
     ],
     quickActions: [
@@ -198,6 +216,7 @@ const CONFIGS = {
         title: "Registrar evolución",
         subtitle: "Actualiza el historial clínico",
         wrapperClass: "hover:bg-sky-50/80",
+        to: "/historial/evolucion",
       },
       {
         icon: "➕",
@@ -205,6 +224,7 @@ const CONFIGS = {
         title: "Nuevo paciente",
         subtitle: "Carga datos básicos y antecedentes",
         wrapperClass: "hover:bg-cyan-50/80",
+        to: "/pacientes/nuevo",
       },
       {
         icon: "🗓️",
@@ -212,6 +232,7 @@ const CONFIGS = {
         title: "Programar cita",
         subtitle: "Coordina horarios disponibles",
         wrapperClass: "hover:bg-indigo-50/80",
+        to: "/citas/nueva",
       },
       {
         icon: "📄",
@@ -219,13 +240,14 @@ const CONFIGS = {
         title: "Notas rápidas",
         subtitle: "Checklist preconsulta",
         wrapperClass: "hover:bg-emerald-50/80",
+        to: "/notas/rapidas",
       },
     ],
     permissions: {
       allowed: [
         "Pacientes: crear, editar y eliminar",
         "Citas: gestionar tu agenda completa",
-        "Historial clínico: ver y editar",        
+        "Historial clínico: ver y editar",
         "Reportes clínicos de tus pacientes",
       ],
       limits: [
@@ -233,37 +255,25 @@ const CONFIGS = {
         "Sin acceso a configuraciones globales",
       ],
     },
-    scheduleSummary: "3 citas",
-    schedule: [
-      {
-        timePeriod: "AM",
-        time: "08:30",
-        patient: "Mateo Fernández",
-        description: "Control respiratorio",
-        status: "En curso",
-        statusClass: "bg-amber-100 text-amber-700",
-      },
-      {
-        timePeriod: "AM",
-        time: "10:00",
-        patient: "Lucía Ortega",
-        description: "Seguimiento nutricional",
-        status: "Confirmada",
-        statusClass: "bg-emerald-100 text-emerald-600",
-      },
-      {
-        timePeriod: "PM",
-        time: "16:30",
-        patient: "Samuel Díaz",
-        description: "Teleconsulta",
-        status: "Virtual",
-        statusClass: "bg-sky-100 text-sky-700",
-      },
-    ],
-    reminder: {
-      title: "Consejo",
-      headline: "Revisa las notas pre consulta",
-      body: "Dedica unos minutos antes de cada cita para repasar antecedentes y alergias registrados.",
+    reminderBuilder: ({ proximas }) => {
+      if (!proximas || proximas.length === 0) {
+        return {
+          title: "Consejo",
+          headline: "Revisa las notas pre consulta",
+          body: "Dedica unos minutos antes de cada cita para repasar antecedentes y alergias registrados.",
+        };
+      }
+      const next = proximas[0];
+      const start = next.inicio ? new Date(next.inicio) : null;
+      const readable = start
+        ? start.toLocaleString("es-GT", { dateStyle: "medium", timeStyle: "short" })
+        : "Próximamente";
+      const status = STATUS_META[next.estado]?.label || next.estado || "Programada";
+      return {
+        title: "Próxima atención",
+        headline: `${next?.paciente?.nombre || "Paciente"} · ${readable}`,
+        body: `${status}${next?.motivo ? ` · ${next.motivo}` : ""}`,
+      };
     },
     accent: {
       badge: "bg-gradient-to-r from-sky-100/90 to-cyan-100/90 text-sky-700",
@@ -272,6 +282,7 @@ const CONFIGS = {
       permissionsLimit: { bullet: "bg-slate-400" },
       reminder: "bg-gradient-to-br from-sky-100 to-cyan-100 border-sky-200/60",
     },
+    scheduleAction: { title: "Ver agenda completa", to: "/citas" },
   },
   ASISTENTE: {
     roleLabel: "Asistente",
@@ -290,36 +301,32 @@ const CONFIGS = {
     ],
     stats: [
       {
+        key: "nuevosPacientes7d",
         label: "Pacientes registrados",
-        value: "32",
         icon: "🧾",
         iconClass: "bg-indigo-100 text-indigo-600",
-        trend: "+7 esta semana",
-        trendClass: "text-indigo-600",
+        trend: "Últimos 7 días",
       },
       {
+        key: "citasSemana",
         label: "Citas agendadas",
-        value: "18",
         icon: "📅",
         iconClass: "bg-violet-100 text-violet-600",
-        trend: "4 requieren confirmación",
-        trendClass: "text-violet-600",
+        trendBuilder: (totals) => `${formatNumber(totals.citasPendientesHoy || 0)} por confirmar`,
       },
       {
-        label: "Check-in completado",
-        value: "11",
+        key: "citasHoy",
+        label: "Check-in de hoy",
         icon: "✅",
         iconClass: "bg-emerald-100 text-emerald-600",
         trend: "Mantén el ritmo",
-        trendClass: "text-emerald-600",
       },
       {
-        label: "Historiales consultados",
-        value: "14",
+        key: "evolucionesSemana",
+        label: "Historiales revisados",
         icon: "📖",
         iconClass: "bg-slate-100 text-slate-600",
         trend: "Solo lectura",
-        trendClass: "text-slate-500",
       },
     ],
     quickActions: [
@@ -329,6 +336,7 @@ const CONFIGS = {
         title: "Registrar paciente",
         subtitle: "Completa ficha inicial",
         wrapperClass: "hover:bg-indigo-50/80",
+        to: "/pacientes/nuevo",
       },
       {
         icon: "📆",
@@ -336,6 +344,7 @@ const CONFIGS = {
         title: "Agendar cita",
         subtitle: "Coordina con el médico disponible",
         wrapperClass: "hover:bg-violet-50/80",
+        to: "/citas/nueva",
       },
       {
         icon: "👀",
@@ -343,6 +352,7 @@ const CONFIGS = {
         title: "Consultar historial",
         subtitle: "Lectura rápida de antecedentes",
         wrapperClass: "hover:bg-slate-50",
+        to: "/historial/consultar",
       },
       {
         icon: "📞",
@@ -350,6 +360,7 @@ const CONFIGS = {
         title: "Confirmar asistencia",
         subtitle: "Contacta a tutores y pacientes",
         wrapperClass: "hover:bg-emerald-50/80",
+        to: "/citas",
       },
     ],
     permissions: {
@@ -364,95 +375,142 @@ const CONFIGS = {
         "Sin gestión de usuarios",
       ],
     },
-    scheduleSummary: "3 citas",
-    schedule: [
-      {
-        timePeriod: "AM",
-        time: "09:15",
-        patient: "Emily Duarte",
-        description: "Ingreso y documentación",
-        status: "Check-in listo",
-        statusClass: "bg-emerald-100 text-emerald-600",
-      },
-      {
-        timePeriod: "AM",
-        time: "11:00",
-        patient: "Tomás Aguilar",
-        description: "Vacuna refuerzo",
-        status: "Confirmar tutor",
-        statusClass: "bg-amber-100 text-amber-700",
-      },
-      {
-        timePeriod: "PM",
-        time: "14:45",
-        patient: "Isabella Ruiz",
-        description: "Consulta general",
-        status: "Pendiente",
-        statusClass: "bg-sky-100 text-sky-700",
-      },
-    ],
-    reminder: {
-      title: "Tips operativos",
-      headline: "Confirma las citas de la tarde",
-      body: "Un mensaje temprano evita inasistencias y ayuda a reorganizar la agenda del equipo médico.",
+    reminderBuilder: ({ proximas }) => {
+      if (!proximas || proximas.length === 0) {
+        return {
+          title: "Seguimiento",
+          headline: "Confirma recordatorios",
+          body: "Revisa los contactos pendientes y asegura la asistencia de los pacientes agendados.",
+        };
+      }
+      const next = proximas[0];
+      const start = next.inicio ? new Date(next.inicio) : null;
+      const readable = start
+        ? start.toLocaleString("es-GT", { dateStyle: "medium", timeStyle: "short" })
+        : "Próximamente";
+      return {
+        title: "Próxima coordinación",
+        headline: `${next?.paciente?.nombre || "Paciente"} · ${readable}`,
+        body: "Verifica documentación y tutor antes de la llegada.",
+      };
     },
     accent: {
-      badge: "bg-gradient-to-r from-indigo-100/90 to-pink-100/80 text-indigo-700",
-      badgeIcon: "💼",
-      permissionsAllowed: { bullet: "bg-indigo-500" },
+      badge: "bg-gradient-to-r from-violet-100/90 to-rose-100/80 text-violet-700",
+      badgeIcon: "🤝",
+      permissionsAllowed: { bullet: "bg-violet-500" },
       permissionsLimit: { bullet: "bg-rose-400" },
-      reminder: "bg-gradient-to-br from-indigo-100 to-pink-100 border-indigo-200/60",
+      reminder: "bg-gradient-to-br from-indigo-100 to-rose-100 border-indigo-200/60",
     },
+    scheduleAction: { title: "Ver agenda completa", to: "/citas" },
   },
 };
 
 export default function Dashboard({ forcedRole }) {
-  const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const logoutStore = useAuthStore((s) => s.logout);
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
+  const roleFromUser = (user?.rol || user?.role || "").toUpperCase();
+  const role = forcedRole || roleFromUser || "ADMIN";
 
-  const handleQuickAction = (action) => {
-    const title = (action?.title || "").toLowerCase();
+  const [overview, setOverview] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-    if (title.includes("registrar paciente") || title.includes("nuevo paciente")) {
-      navigate("/pacientes/nuevo");
-      return;
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await DashboardAPI.overview();
+      setOverview(data);
+    } catch (err) {
+      console.error("[dashboard] overview", err);
+      const message = err?.response?.data?.error || err?.message || "No se pudo cargar el dashboard";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleLogout = useCallback(() => {
+    logoutStore();
+    navigate("/", { replace: true });
+  }, [logoutStore, navigate]);
+
+  const handleQuickAction = useCallback(
+    (action) => {
+      if (!action?.to) return;
+      navigate(action.to);
+    },
+    [navigate]
+  );
+
+  const config = useMemo(() => {
+    const base = ROLE_BASE[role] || ROLE_BASE.ADMIN;
+    const totals = overview?.totals || {};
+    const agenda = overview?.agendaHoy || [];
+    const schedule = buildSchedule(agenda);
+    const proximas = overview?.proximasCitas || [];
+    const summaryCount = agenda.length;
+
+    const stats = base.stats.map((stat) => {
+      const valueRaw = stat.key ? totals[stat.key] : stat.defaultValue;
+      const value = stat.formatValue
+        ? stat.formatValue(valueRaw, totals)
+        : stat.key
+        ? formatNumber(valueRaw ?? 0)
+        : stat.value;
+      const trend = stat.trendBuilder ? stat.trendBuilder(totals) : stat.trend || null;
+      return { ...stat, value, trend };
+    });
+
+    let reminder = base.reminder;
+    if (base.reminderBuilder) {
+      reminder = base.reminderBuilder({ totals, proximas });
     }
 
-    if (title.includes("agendar cita") || title.includes("nueva cita") || title.includes("programar cita")) {
-      navigate("/citas/nueva");
-      return;
-    }
+    return {
+      ...base,
+      stats,
+      schedule,
+      scheduleSummary: `${summaryCount} ${summaryCount === 1 ? "cita" : "citas"}`,
+      reminder,
+    };
+  }, [role, overview]);
 
-    if (title.includes("consultar historial") || title.includes("historial")) {
-      navigate("/historial/consultar");
-    }
-  };
-
-  const role = (forcedRole || user?.rol || user?.role || "ASISTENTE").toUpperCase();
-  const config = CONFIGS[role] || CONFIGS.ASISTENTE;
-
-  if (!user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-900/90 text-white">
-        <div className="rounded-2xl bg-white/10 px-8 py-6 text-sm backdrop-blur">
-          Preparando tu panel…
-        </div>
-      </div>
-    );
+  if (!user && !loading) {
+    return null;
   }
 
   return (
-    <RoleDashboard
-      user={user}
-      config={config}
-      onLogout={handleLogout}
-      onQuickAction={handleQuickAction}
-    />
+    <>
+      <Toaster position="top-right" />
+      {loading ? (
+        <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-600">
+          <div className="rounded-2xl bg-white px-6 py-5 shadow">Cargando panel...</div>
+        </div>
+      ) : error ? (
+        <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-600">
+          <div className="space-y-4 rounded-2xl bg-white px-6 py-5 text-center shadow">
+            <p className="text-lg font-semibold text-rose-500">No se pudo cargar el dashboard</p>
+            <p className="text-sm text-slate-500">{error}</p>
+            <button
+              type="button"
+              onClick={fetchData}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-500"
+            >
+              Reintentar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <RoleDashboard user={user} config={config} onLogout={handleLogout} onQuickAction={handleQuickAction} />
+      )}
+    </>
   );
 }
