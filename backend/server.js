@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { connectDB } from './config/db.js';
 import { globalLimiter } from './middleware/rateLimiters.js';
 
@@ -16,11 +17,9 @@ import citasRoutes from './routes/citas.routes.js';
 import { requireAuth } from './middleware/auth.js';
 
 const app = express();
+app.set('trust proxy', 1);
 
 /* -------- Seguridad base -------- */
-const trustHops = parseInt(process.env.TRUST_PROXY || '0', 10);
-if (trustHops > 0) app.set('trust proxy', trustHops);
-
 app.disable('x-powered-by');
 app.use(express.json({ limit: '20kb' }));
 app.use(helmet());
@@ -38,6 +37,13 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 /* -------- Rate limit global -------- */
 app.use(globalLimiter);
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+const loginLimiter = rateLimit({
+  windowMs: isDevelopment ? 60 * 1000 : 10 * 60 * 1000,
+  max: isDevelopment ? 50 : 5,
+  skipSuccessfulRequests: true,
+});
+
 /* -------- Healthcheck -------- */
 app.get('/api/health', (req, res) => {
   res.json({
@@ -52,6 +58,7 @@ app.get('/api/health', (req, res) => {
 app.get('/', (req, res) => res.json({ ok: true, msg: 'API Clínica funcionando' }));
 
 /* -------- Rutas API (todas con prefijo /api) -------- */
+app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/pacientes', pacientesRoutes);
 app.use('/api/citas', citasRoutes);
