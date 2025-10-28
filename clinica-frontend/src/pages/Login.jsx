@@ -103,12 +103,13 @@ export default function Login() {
   const fetchMeIfToken = useAuthStore((s) => s.fetchMeIfToken);
   const user = useAuthStore((s) => s.user);
 
-  useEffect(() => { fetchMeIfToken(); }, []);
+  useEffect(() => { fetchMeIfToken(); }, [fetchMeIfToken]);
   useEffect(() => {
     if (!user) return;
-    const role = user.role || user.rol;
+    const role = (user.role || user.rol || "").toUpperCase();
     if (role === "ADMIN") nav("/admin", { replace: true });
     else if (role === "MEDICO") nav("/medico", { replace: true });
+    else if (role === "ASISTENTE") nav("/asistente", { replace: true });
     else nav("/dashboard", { replace: true });
   }, [user, nav]);
 
