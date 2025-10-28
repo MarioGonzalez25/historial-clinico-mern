@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import RoleDashboard from "../components/dashboard/RoleDashboard";
 import { useAuthStore } from "../store/auth";
 
@@ -408,6 +409,30 @@ const CONFIGS = {
 export default function Dashboard({ forcedRole }) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
+
+  const handleQuickAction = (action) => {
+    const title = (action?.title || "").toLowerCase();
+
+    if (title.includes("registrar paciente") || title.includes("nuevo paciente")) {
+      navigate("/pacientes/nuevo");
+      return;
+    }
+
+    if (title.includes("agendar cita") || title.includes("nueva cita") || title.includes("programar cita")) {
+      navigate("/citas/nueva");
+      return;
+    }
+
+    if (title.includes("consultar historial") || title.includes("historial")) {
+      navigate("/historial/consultar");
+    }
+  };
 
   const role = (forcedRole || user?.rol || user?.role || "ASISTENTE").toUpperCase();
   const config = CONFIGS[role] || CONFIGS.ASISTENTE;
@@ -422,5 +447,12 @@ export default function Dashboard({ forcedRole }) {
     );
   }
 
-  return <RoleDashboard user={user} config={config} onLogout={logout} />;
+  return (
+    <RoleDashboard
+      user={user}
+      config={config}
+      onLogout={handleLogout}
+      onQuickAction={handleQuickAction}
+    />
+  );
 }
