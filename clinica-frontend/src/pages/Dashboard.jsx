@@ -61,6 +61,7 @@ const CONFIGS = {
         title: "Nuevo paciente",
         subtitle: "Registrar ficha y datos del tutor",
         wrapperClass: "hover:bg-violet-50/80",
+        to: "/pacientes/nuevo",
       },
       {
         icon: "📅",
@@ -68,6 +69,7 @@ const CONFIGS = {
         title: "Nueva cita",
         subtitle: "Asignar médico y consultorio",
         wrapperClass: "hover:bg-rose-50/80",
+        to: "/citas/nueva",
       },
       {
         icon: "🧑‍⚕️",
@@ -75,6 +77,7 @@ const CONFIGS = {
         title: "Gestionar usuarios",
         subtitle: "Crear o suspender cuentas",
         wrapperClass: "hover:bg-indigo-50/80",
+        to: "/usuarios",
       },
       {
         icon: "📊",
@@ -82,6 +85,7 @@ const CONFIGS = {
         title: "Ver reportes",
         subtitle: "Indicadores de servicio",
         wrapperClass: "hover:bg-emerald-50/80",
+        to: "/reportes",
       },
     ],
     permissions: {
@@ -134,6 +138,10 @@ const CONFIGS = {
       headline: "Revisa los reportes semanales",
       body: "Analiza la ocupación de consultorios y el rendimiento de tu equipo para ajustar la programación del fin de semana.",
     },
+    scheduleAction: {
+      title: "Ver agenda completa",
+      to: "/citas",
+    },
     accent: {
       badge: "bg-gradient-to-r from-violet-100/90 to-rose-100/80 text-violet-700",
       badgeIcon: "⭐",
@@ -175,7 +183,7 @@ const CONFIGS = {
         trendClass: "text-cyan-600",
       },
       {
-        label: "Pendientes",
+        label: "Evoluciones por registrar",
         value: "9",
         icon: "📝",
         iconClass: "bg-indigo-100 text-indigo-600",
@@ -183,12 +191,12 @@ const CONFIGS = {
         trendClass: "text-indigo-600",
       },
       {
-        label: "Satisfacción",
-        value: "4.9",
-        icon: "💙",
-        iconClass: "bg-emerald-100 text-emerald-600",
-        trend: "Top 5 del mes",
-        trendClass: "text-emerald-600",
+        label: "Alertas preconsulta",
+        value: "3",
+        icon: "🚨",
+        iconClass: "bg-rose-100 text-rose-500",
+        trend: "Revisar alergias y pendientes",
+        trendClass: "text-rose-500",
       },
     ],
     quickActions: [
@@ -198,6 +206,7 @@ const CONFIGS = {
         title: "Registrar evolución",
         subtitle: "Actualiza el historial clínico",
         wrapperClass: "hover:bg-sky-50/80",
+        to: "/historial/evolucion",
       },
       {
         icon: "➕",
@@ -205,6 +214,7 @@ const CONFIGS = {
         title: "Nuevo paciente",
         subtitle: "Carga datos básicos y antecedentes",
         wrapperClass: "hover:bg-cyan-50/80",
+        to: "/pacientes/nuevo",
       },
       {
         icon: "🗓️",
@@ -212,6 +222,7 @@ const CONFIGS = {
         title: "Programar cita",
         subtitle: "Coordina horarios disponibles",
         wrapperClass: "hover:bg-indigo-50/80",
+        to: "/citas/nueva",
       },
       {
         icon: "📄",
@@ -219,6 +230,7 @@ const CONFIGS = {
         title: "Notas rápidas",
         subtitle: "Checklist preconsulta",
         wrapperClass: "hover:bg-emerald-50/80",
+        to: "/notas/rapidas",
       },
     ],
     permissions: {
@@ -271,6 +283,10 @@ const CONFIGS = {
       permissionsAllowed: { bullet: "bg-sky-500" },
       permissionsLimit: { bullet: "bg-slate-400" },
       reminder: "bg-gradient-to-br from-sky-100 to-cyan-100 border-sky-200/60",
+    },
+    scheduleAction: {
+      title: "Ver agenda completa",
+      to: "/citas",
     },
   },
   ASISTENTE: {
@@ -329,6 +345,7 @@ const CONFIGS = {
         title: "Registrar paciente",
         subtitle: "Completa ficha inicial",
         wrapperClass: "hover:bg-indigo-50/80",
+        to: "/pacientes/nuevo",
       },
       {
         icon: "📆",
@@ -336,6 +353,7 @@ const CONFIGS = {
         title: "Agendar cita",
         subtitle: "Coordina con el médico disponible",
         wrapperClass: "hover:bg-violet-50/80",
+        to: "/citas/nueva",
       },
       {
         icon: "👀",
@@ -343,6 +361,7 @@ const CONFIGS = {
         title: "Consultar historial",
         subtitle: "Lectura rápida de antecedentes",
         wrapperClass: "hover:bg-slate-50",
+        to: "/historial/consultar",
       },
       {
         icon: "📞",
@@ -350,6 +369,7 @@ const CONFIGS = {
         title: "Confirmar asistencia",
         subtitle: "Contacta a tutores y pacientes",
         wrapperClass: "hover:bg-emerald-50/80",
+        to: "/citas",
       },
     ],
     permissions: {
@@ -396,6 +416,10 @@ const CONFIGS = {
       headline: "Confirma las citas de la tarde",
       body: "Un mensaje temprano evita inasistencias y ayuda a reorganizar la agenda del equipo médico.",
     },
+    scheduleAction: {
+      title: "Gestionar agenda",
+      to: "/citas",
+    },
     accent: {
       badge: "bg-gradient-to-r from-indigo-100/90 to-pink-100/80 text-indigo-700",
       badgeIcon: "💼",
@@ -417,6 +441,11 @@ export default function Dashboard({ forcedRole }) {
   };
 
   const handleQuickAction = (action) => {
+    if (action?.to) {
+      navigate(action.to);
+      return;
+    }
+
     const title = (action?.title || "").toLowerCase();
 
     if (title.includes("registrar paciente") || title.includes("nuevo paciente")) {

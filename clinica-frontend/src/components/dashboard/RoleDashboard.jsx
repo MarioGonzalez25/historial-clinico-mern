@@ -182,6 +182,16 @@ export default function RoleDashboard({ user, config, onLogout, onQuickAction })
                     <ScheduleCard key={`${item.time}-${item.patient}`} item={item} />
                   ))}
                 </div>
+                {config.scheduleAction && (
+                  <button
+                    type="button"
+                    onClick={() => onQuickAction?.(config.scheduleAction)}
+                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    <span aria-hidden>🗂️</span>
+                    {config.scheduleAction.title}
+                  </button>
+                )}
               </div>
 
               <div className={cx(
