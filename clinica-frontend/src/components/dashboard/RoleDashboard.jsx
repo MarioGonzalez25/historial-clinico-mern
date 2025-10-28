@@ -17,7 +17,7 @@ function StatCard({ stat }) {
   );
 }
 
-function QuickAction({ action }) {
+function QuickAction({ action, onSelect }) {
   return (
     <button
       type="button"
@@ -26,6 +26,7 @@ function QuickAction({ action }) {
         "hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_18px_40px_-30px_rgba(79,70,229,0.7)]",
         action.wrapperClass
       )}
+      onClick={() => onSelect?.(action)}
     >
       <span className={cx("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg", action.iconClass)}>
         {action.icon}
@@ -74,7 +75,7 @@ function ScheduleCard({ item }) {
   );
 }
 
-export default function RoleDashboard({ user, config, onLogout }) {
+export default function RoleDashboard({ user, config, onLogout, onQuickAction }) {
   const roleLabel = config.roleLabel;
 
   return (
@@ -136,7 +137,7 @@ export default function RoleDashboard({ user, config, onLogout }) {
               </div>
 
               <button
-                onClick={onLogout}
+                onClick={() => onLogout?.()}
                 className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/60 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-white"
               >
                 <span aria-hidden>⏏</span> Cerrar sesión
@@ -159,7 +160,7 @@ export default function RoleDashboard({ user, config, onLogout }) {
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   {config.quickActions.map((action) => (
-                    <QuickAction key={action.title} action={action} />
+                    <QuickAction key={action.title} action={action} onSelect={onQuickAction} />
                   ))}
                 </div>
               </div>

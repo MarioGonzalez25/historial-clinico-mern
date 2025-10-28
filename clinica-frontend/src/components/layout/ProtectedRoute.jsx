@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuthStore } from "../../store/auth";
 
-export default function ProtectedRoute({ children, allowed = [] }) {
+export default function ProtectedRoute({ children, allowed = [], roles = [] }) {
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
   const loadingMe = useAuthStore((s) => s.loadingMe);
@@ -34,8 +34,10 @@ export default function ProtectedRoute({ children, allowed = [] }) {
     return <Navigate to="/" replace />;
   }
 
+  const allowedRoles = roles.length > 0 ? roles : allowed;
+
   const role = (user?.rol || user?.role || "").toUpperCase();
-  if (allowed.length > 0 && !allowed.includes(role)) {
+  if (allowedRoles.length > 0 && !allowedRoles.includes(role)) {
     return <Navigate to="/dashboard" replace />;
   }
 
