@@ -87,7 +87,7 @@ router.get('/',
         Cita.find(q)
           .sort({ [sf]: sd === 'desc' ? -1 : 1 })
           .skip(skip).limit(limit)
-          .populate('patientId','nombre')
+          .populate('patientId','nombreCompleto telefono')
           .populate('doctorId','nombre'),
         Cita.countDocuments(q)
       ]);
@@ -168,7 +168,7 @@ router.get('/papelera',
         Cita.find(q)
           .sort({ [sf]: sd === 'desc' ? -1 : 1 })
           .skip(skip).limit(limit)
-          .populate('patientId','nombre')
+          .populate('patientId','nombreCompleto telefono')
           .populate('doctorId','nombre'),
         Cita.countDocuments(q)
       ]);

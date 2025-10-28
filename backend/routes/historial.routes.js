@@ -10,10 +10,10 @@ const router = Router();
 // Crear (ADMIN | MEDICO)
 router.post('/', requireAuth, authorize('ADMIN', 'MEDICO'), async (req, res) => {
   try {
-    const { patientId, fecha, diagnostico, tratamiento, notas, signosVitales } = req.body;
+    const { patientId, fecha, diagnostico, tratamiento, motivoConsulta, notas, signosVitales } = req.body;
 
-    if (!patientId || !fecha || !diagnostico || !tratamiento) {
-      return res.status(400).json({ error: 'patientId, fecha, diagnostico y tratamiento son obligatorios' });
+    if (!patientId || !fecha || !diagnostico || !tratamiento || !motivoConsulta) {
+      return res.status(400).json({ error: 'patientId, fecha, motivoConsulta, diagnostico y tratamiento son obligatorios' });
     }
     if (!mongoose.isValidObjectId(patientId)) {
       return res.status(400).json({ error: 'patientId no es un ObjectId válido' });
@@ -35,6 +35,7 @@ router.post('/', requireAuth, authorize('ADMIN', 'MEDICO'), async (req, res) => 
     const entry = await Historial.create({
       patientId,
       fecha: fechaISO,
+      motivoConsulta: motivoConsulta.trim(),
       diagnostico: diagnostico.trim(),
       tratamiento: tratamiento.trim(),
       notas,
