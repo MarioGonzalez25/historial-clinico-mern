@@ -26,6 +26,20 @@ function formatDate(iso) {
   return date.toLocaleDateString("es-GT", { dateStyle: "medium" });
 }
 
+function getPatientDescriptor(paciente) {
+  if (!paciente) return "";
+  return (
+    paciente.identificador ||
+    paciente.numeroHistorial ||
+    paciente.expediente ||
+    paciente.dpi ||
+    paciente.documento ||
+    paciente.email ||
+    paciente.telefono ||
+    ""
+  );
+}
+
 function AttachmentCard({ archivo }) {
   const isImage = archivo?.tipo?.startsWith("image/");
   const sizeKb = archivo?.tamano ? Math.round((archivo.tamano / 1024) * 10) / 10 : null;
@@ -318,31 +332,30 @@ export default function ConsultarHistorial() {
     fetchPacientes();
   }, []);
 
-  const patientsOptions = useMemo(
-    () =>
-      pacientes.map((paciente) => ({
-        id: paciente._id || paciente.id,
-        label: paciente.nombreCompleto,
-      })),
-    [pacientes]
+  const filteredPatients = useMemo(() => {
+    if (!searchTerm.trim()) return pacientes;
+    const term = searchTerm.trim().toLowerCase();
+    return pacientes.filter((paciente) => (paciente.nombreCompleto || "").toLowerCase().includes(term));
+  }, [pacientes, searchTerm]);
+
+  const selectedPatientInfo = useMemo(
+    () => pacientes.find((paciente) => (paciente._id || paciente.id) === selectedPatient),
+    [pacientes, selectedPatient]
   );
 
-  const filteredOptions = useMemo(() => {
-    if (!searchTerm.trim()) return patientsOptions;
-    const term = searchTerm.trim().toLowerCase();
-    return patientsOptions.filter((option) => option.label.toLowerCase().includes(term));
-  }, [patientsOptions, searchTerm]);
+  const selectedDescriptor = useMemo(() => getPatientDescriptor(selectedPatientInfo), [selectedPatientInfo]);
 
   useEffect(() => {
-    if (!filteredOptions.length) {
+    if (!filteredPatients.length) {
       setSelectedPatient("");
       return;
     }
-    const stillExists = filteredOptions.some((option) => option.id === selectedPatient);
+    const stillExists = filteredPatients.some((paciente) => (paciente._id || paciente.id) === selectedPatient);
     if (!stillExists) {
-      setSelectedPatient(filteredOptions[0].id);
+      const first = filteredPatients[0];
+      setSelectedPatient(first?._id || first?.id || "");
     }
-  }, [filteredOptions, selectedPatient]);
+  }, [filteredPatients, selectedPatient]);
 
   const consultar = useCallback(async (patientId) => {
     if (!patientId) {
@@ -390,7 +403,7 @@ export default function ConsultarHistorial() {
                 {loadingPatients ? (
                   <p className="mt-4 text-sm text-slate-500">Cargando pacientes…</p>
                 ) : (
-                  <div className="mt-4 space-y-4">
+                  <div className="mt-4 space-y-5">
                     <label className="block space-y-2 text-sm font-semibold text-slate-600">
                       Buscar por nombre
                       <input
@@ -401,55 +414,83 @@ export default function ConsultarHistorial() {
                         className={inputClasses}
                       />
                     </label>
-                    <label className="block space-y-2 text-sm font-semibold text-slate-600">
-                      Paciente
-                      <select
-                        className={`${inputClasses} text-slate-700`}
-                        value={selectedPatient}
-                        onChange={(event) => setSelectedPatient(event.target.value)}
+
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Pacientes encontrados</p>
+                      {filteredPatients.length === 0 ? (
+                        <p className="rounded-xl border border-dashed border-slate-200 bg-white/60 px-4 py-3 text-sm text-slate-500">
+                          {searchTerm.trim()
+                            ? `No hay coincidencias con "${searchTerm}".`
+                            : "No hay pacientes registrados todavía."}
+                        </p>
+                      ) : (
+                        <ul className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                          {filteredPatients.map((paciente) => {
+                            const id = paciente._id || paciente.id;
+                            const isActive = id === selectedPatient;
+                            const descriptor = getPatientDescriptor(paciente);
+                            return (
+                              <li key={id}>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedPatient(id)}
+                                  className={`w-full rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                                    isActive
+                                      ? "border-indigo-300 bg-white text-slate-900 shadow-[0_20px_35px_-30px_rgba(79,70,229,0.7)]"
+                                      : "border-transparent bg-white/80 text-slate-600 hover:border-indigo-200 hover:text-slate-900"
+                                  }`}
+                                >
+                                  <p className="font-semibold text-slate-800">{paciente.nombreCompleto}</p>
+                                  {descriptor ? (
+                                    <p className="mt-1 text-xs uppercase tracking-wide text-slate-400">{descriptor}</p>
+                                  ) : null}
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-3 rounded-2xl border border-white/70 bg-white px-5 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">Paciente seleccionado</p>
+                        <p className="text-sm text-slate-600">{selectedPatientInfo?.nombreCompleto || "Ninguno"}</p>
+                        {selectedDescriptor ? (
+                          <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-400">
+                            {selectedDescriptor}
+                          </p>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => consultar(selectedPatient)}
+                        disabled={!selectedPatient || loadingEntries}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:shadow-indigo-500/40 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <option value="">Selecciona un paciente</option>
-                        {filteredOptions.map((option) => (
-                          <option key={option.id} value={option.id}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => consultar(selectedPatient)}
-                      disabled={!selectedPatient}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:shadow-indigo-500/40 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <span aria-hidden>🔄</span>
-                      Actualizar historial
-                    </button>
-                    {total > 0 && (
-                      <p className="text-xs text-slate-400">{total} registros encontrados</p>
-                    )}
+                        <span aria-hidden>🔄</span>
+                        Actualizar historial
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
 
-              {canCreate ? (
-                <HistorialEntryForm patientId={selectedPatient} onCreated={() => consultar(selectedPatient)} />
-              ) : (
-                <div className="rounded-2xl border border-slate-100 bg-white p-6 text-sm text-slate-600 shadow-sm">
-                  <h2 className="text-base font-semibold text-slate-800">Modo lectura</h2>
-                  <p className="mt-2">
-                    Puedes revisar la información clínica y los adjuntos de cada cita, pero solo el personal médico puede actualizar
-                    el expediente.
-                  </p>
-                </div>
-              )}
-
               <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                <h2 className="text-base font-semibold text-slate-800">Historial clínico</h2>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-base font-semibold text-slate-800">Historial clínico</h2>
+                  {total > 0 && (
+                    <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-500">
+                      {total} registro{total === 1 ? "" : "s"}
+                    </span>
+                  )}
+                </div>
                 {loadingEntries ? (
                   <p className="mt-4 text-sm text-slate-500">Cargando historial…</p>
                 ) : entries.length === 0 ? (
-                  <p className="mt-4 text-sm text-slate-500">Selecciona un paciente para visualizar su historial clínico.</p>
+                  <p className="mt-4 text-sm text-slate-500">
+                    {selectedPatient ? "Este paciente aún no tiene evoluciones registradas." : "Selecciona un paciente para visualizar su historial clínico."}
+                  </p>
                 ) : (
                   <ul className="mt-4 space-y-4 text-sm text-slate-600">
                     {entries.map((item) => (
@@ -487,6 +528,17 @@ export default function ConsultarHistorial() {
                   </ul>
                 )}
               </div>
+
+              {canCreate ? (
+                <HistorialEntryForm patientId={selectedPatient} onCreated={() => consultar(selectedPatient)} />
+              ) : (
+                <div className="rounded-2xl border border-slate-100 bg-white p-6 text-sm text-slate-600 shadow-sm">
+                  <h2 className="text-base font-semibold text-slate-800">Modo lectura</h2>
+                  <p className="mt-2">
+                    Puedes revisar la información clínica y los adjuntos de cada cita, pero solo el personal médico puede actualizar el expediente.
+                  </p>
+                </div>
+              )}
             </div>
 
             <aside className="space-y-6">

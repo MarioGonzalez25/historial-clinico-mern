@@ -15,7 +15,6 @@ import Reportes from "./pages/reportes/Reportes";
 import NotasRapidas from "./pages/notas/NotasRapidas";
 import ListaCitas from "./pages/citas/ListaCitas";
 import Configuracion from "./pages/configuracion/Configuracion";
-import Soporte from "./pages/soporte/Soporte";
 
 export default function App() {
   return (
@@ -121,14 +120,6 @@ export default function App() {
           element={(
             <ProtectedRoute roles={["ADMIN"]}>
               <Configuracion />
-            </ProtectedRoute>
-          )}
-        />
-        <Route
-          path="/soporte"
-          element={(
-            <ProtectedRoute roles={["ASISTENTE", "ADMIN"]}>
-              <Soporte />
             </ProtectedRoute>
           )}
         />

@@ -15,7 +15,6 @@ import citasRoutes from './routes/citas.routes.js';
 import historialRoutes from './routes/historial.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import usersRoutes from './routes/users.routes.js';
-import soporteRoutes from './routes/soporte.routes.js';
 
 // Middlewares
 import { requireAuth } from './middleware/auth.js';
@@ -78,7 +77,6 @@ app.use('/api/citas', citasRoutes);
 app.use('/api/historial', historialRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/users', usersRoutes);
-app.use('/api/soporte', soporteRoutes);
 
 // Ejemplo privado
 app.get('/private/hello', requireAuth, (req, res) => {

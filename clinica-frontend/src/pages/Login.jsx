@@ -123,7 +123,15 @@ export default function Login() {
       loginOk({ token, user });
       toast.success(`Bienvenido, ${user?.nombre || "usuario"}`);
     } catch (err) {
-      toast.error(err.message || "Error al iniciar sesión");
+      const status = err?.response?.status;
+      const backendMessage = err?.response?.data?.error || err?.response?.data?.message;
+      let friendly = backendMessage || err?.message || "Error al iniciar sesión";
+
+      if (status === 400 || status === 401) {
+        friendly = "Usuario o contraseña incorrectos. Vuelve a intentarlo.";
+      }
+
+      toast.error(friendly);
     } finally {
       setLoading(false);
     }

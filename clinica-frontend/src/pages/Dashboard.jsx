@@ -399,13 +399,6 @@ const ROLE_BASE = {
         to: "/historial/consultar",
         match: (pathname) => pathname.startsWith("/historial"),
       },
-      {
-        key: "support",
-        label: "Soporte",
-        icon: "💬",
-        to: "/soporte",
-        match: (pathname) => pathname.startsWith("/soporte"),
-      },
     ],
     stats: [
       {
