@@ -26,7 +26,7 @@ app.disable('etag');
 
 /* -------- Seguridad base -------- */
 app.disable('x-powered-by');
-app.use(express.json({ limit: '20kb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(helmet());
 app.use((req, res, next) => {
   res.set({
