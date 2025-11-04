@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Toaster, toast } from "react-hot-toast";
+import { soporteApi } from "../../api/soporte";
 
 const initialTicket = {
   asunto: "",
@@ -10,6 +11,7 @@ const initialTicket = {
 export default function Soporte() {
   const [ticket, setTicket] = useState(initialTicket);
   const [enviando, setEnviando] = useState(false);
+  const [ultimoTicket, setUltimoTicket] = useState(null);
 
   const onChange = (event) => {
     const { name, value } = event.target;
@@ -20,12 +22,19 @@ export default function Soporte() {
     event.preventDefault();
     try {
       setEnviando(true);
-      await new Promise((resolve) => setTimeout(resolve, 900));
-      toast.success("Tu solicitud fue enviada, responderemos pronto");
+      const payload = {
+        asunto: ticket.asunto,
+        descripcion: ticket.descripcion,
+        prioridad: ticket.prioridad,
+      };
+      const nuevo = await soporteApi.crearTicket(payload);
       setTicket(initialTicket);
+      setUltimoTicket(nuevo);
+      toast.success(`Ticket ${nuevo.folio} enviado correctamente`);
     } catch (err) {
       console.error("[soporte] submit", err);
-      toast.error("No se pudo enviar la solicitud");
+      const mensaje = err?.response?.data?.error || "No se pudo enviar la solicitud";
+      toast.error(mensaje);
     } finally {
       setEnviando(false);
     }
@@ -101,6 +110,18 @@ export default function Soporte() {
               >
                 {enviando ? "Enviando…" : "Enviar solicitud"}
               </button>
+
+              {ultimoTicket && (
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 text-sm text-indigo-900 shadow-sm">
+                  <p className="font-semibold text-indigo-700">Tu solicitud fue registrada</p>
+                  <p className="mt-1 text-xs text-indigo-600">
+                    Folio <span className="font-mono font-semibold">{ultimoTicket.folio}</span> · Prioridad {ultimoTicket.prioridad}
+                  </p>
+                  <p className="mt-3 text-xs text-indigo-500">
+                    El equipo recibirá una notificación inmediata y te contactará al correo asociado a tu cuenta.
+                  </p>
+                </div>
+              )}
             </form>
 
             <aside className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-6">
