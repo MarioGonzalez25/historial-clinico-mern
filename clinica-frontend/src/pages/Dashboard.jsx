@@ -42,6 +42,12 @@ function buildSchedule(agenda = []) {
   });
 }
 
+const DASHBOARD_HOME = {
+  ADMIN: "/admin",
+  MEDICO: "/medico",
+  ASISTENTE: "/asistente",
+};
+
 const ROLE_BASE = {
   ADMIN: {
     roleLabel: "Administrador",
@@ -52,13 +58,55 @@ const ROLE_BASE = {
       note: "Acceso total para configurar usuarios, revisar reportes y ajustar la operación diaria de la clínica.",
     },
     navItems: [
-      { label: "Inicio", icon: "🏠", active: true },
-      { label: "Pacientes", icon: "🧒" },
-      { label: "Citas", icon: "📅" },
-      { label: "Historial clínico", icon: "📋" },
-      { label: "Usuarios", icon: "🧑‍⚕️" },
-      { label: "Reportes", icon: "📊" },
-      { label: "Configuración", icon: "⚙️" },
+      {
+        key: "home",
+        label: "Inicio",
+        icon: "🏠",
+        to: DASHBOARD_HOME.ADMIN,
+        match: (pathname) => ["/dashboard", DASHBOARD_HOME.ADMIN].includes(pathname),
+      },
+      {
+        key: "patients",
+        label: "Pacientes",
+        icon: "🧒",
+        to: "/pacientes",
+        match: (pathname) => pathname.startsWith("/pacientes"),
+      },
+      {
+        key: "appointments",
+        label: "Citas",
+        icon: "📅",
+        to: "/citas",
+        match: (pathname) => pathname.startsWith("/citas"),
+      },
+      {
+        key: "history",
+        label: "Historial clínico",
+        icon: "📋",
+        to: "/historial/consultar",
+        match: (pathname) => pathname.startsWith("/historial"),
+      },
+      {
+        key: "users",
+        label: "Usuarios",
+        icon: "🧑‍⚕️",
+        to: "/usuarios",
+        match: (pathname) => pathname.startsWith("/usuarios"),
+      },
+      {
+        key: "reports",
+        label: "Reportes",
+        icon: "📊",
+        to: "/reportes",
+        match: (pathname) => pathname.startsWith("/reportes"),
+      },
+      {
+        key: "settings",
+        label: "Configuración",
+        icon: "⚙️",
+        to: "/configuracion",
+        match: (pathname) => pathname.startsWith("/configuracion"),
+      },
     ],
     stats: [
       {
@@ -173,11 +221,41 @@ const ROLE_BASE = {
       note: "Monitorea tu lista de pacientes, consulta sus historiales y mantén al día la agenda diaria.",
     },
     navItems: [
-      { label: "Inicio", icon: "🏠", active: true },
-      { label: "Mis pacientes", icon: "🩺" },
-      { label: "Mis citas", icon: "🗓️" },
-      { label: "Historial clínico", icon: "📚" },
-      { label: "Reportes", icon: "📈" },
+      {
+        key: "home",
+        label: "Inicio",
+        icon: "🏠",
+        to: DASHBOARD_HOME.MEDICO,
+        match: (pathname) => ["/dashboard", DASHBOARD_HOME.MEDICO].includes(pathname),
+      },
+      {
+        key: "patients",
+        label: "Mis pacientes",
+        icon: "🩺",
+        to: "/pacientes?mis=1",
+        match: (pathname) => pathname.startsWith("/pacientes"),
+      },
+      {
+        key: "appointments",
+        label: "Mis citas",
+        icon: "🗓️",
+        to: "/citas?mis=1",
+        match: (pathname) => pathname.startsWith("/citas"),
+      },
+      {
+        key: "history",
+        label: "Historial clínico",
+        icon: "📚",
+        to: "/historial/consultar",
+        match: (pathname) => pathname.startsWith("/historial"),
+      },
+      {
+        key: "reports",
+        label: "Reportes",
+        icon: "📈",
+        to: "/reportes",
+        match: (pathname) => pathname.startsWith("/reportes"),
+      },
     ],
     stats: [
       {
@@ -293,11 +371,41 @@ const ROLE_BASE = {
       note: "Focalízate en recibir pacientes, asegurar su registro correcto y mantener la agenda en orden.",
     },
     navItems: [
-      { label: "Inicio", icon: "🏠", active: true },
-      { label: "Pacientes", icon: "🧾" },
-      { label: "Agenda", icon: "🗓️" },
-      { label: "Historial clínico", icon: "📖" },
-      { label: "Soporte", icon: "💬" },
+      {
+        key: "home",
+        label: "Inicio",
+        icon: "🏠",
+        to: DASHBOARD_HOME.ASISTENTE,
+        match: (pathname) => ["/dashboard", DASHBOARD_HOME.ASISTENTE].includes(pathname),
+      },
+      {
+        key: "patients",
+        label: "Pacientes",
+        icon: "🧾",
+        to: "/pacientes",
+        match: (pathname) => pathname.startsWith("/pacientes"),
+      },
+      {
+        key: "appointments",
+        label: "Agenda",
+        icon: "🗓️",
+        to: "/citas",
+        match: (pathname) => pathname.startsWith("/citas"),
+      },
+      {
+        key: "history",
+        label: "Historial clínico",
+        icon: "📖",
+        to: "/historial/consultar",
+        match: (pathname) => pathname.startsWith("/historial"),
+      },
+      {
+        key: "support",
+        label: "Soporte",
+        icon: "💬",
+        to: "/soporte",
+        match: (pathname) => pathname.startsWith("/soporte"),
+      },
     ],
     stats: [
       {
@@ -474,8 +582,11 @@ export default function Dashboard({ forcedRole }) {
       reminder = base.reminderBuilder({ totals, proximas });
     }
 
+    const navItems = base.navItems.map((item) => ({ ...item }));
+
     return {
       ...base,
+      navItems,
       stats,
       schedule,
       scheduleSummary: `${summaryCount} ${summaryCount === 1 ? "cita" : "citas"}`,

@@ -1,3 +1,5 @@
+import { useLocation, useNavigate } from "react-router-dom";
+
 const cx = (...classes) => classes.filter(Boolean).join(" ");
 
 function StatCard({ stat }) {
@@ -76,7 +78,19 @@ function ScheduleCard({ item }) {
 }
 
 export default function RoleDashboard({ user, config, onLogout, onQuickAction }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const roleLabel = config.roleLabel;
+  const navItems = config.navItems || [];
+
+  const handleNavClick = (item) => {
+    if (!item) return;
+    if (item.to) {
+      navigate(item.to);
+    } else if (item.onClick) {
+      item.onClick();
+    }
+  };
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-[#f5f1ff] via-[#fef6ff] to-[#f3f7ff] text-slate-900">
@@ -91,20 +105,31 @@ export default function RoleDashboard({ user, config, onLogout, onQuickAction })
           </div>
 
           <nav className="mt-12 space-y-2 text-sm">
-            {config.navItems.map((item) => (
-              <div
-                key={item.label}
-                className={cx(
-                  "flex items-center gap-3 rounded-xl px-4 py-3 font-medium transition",
-                  item.active
-                    ? "bg-white text-slate-900 shadow-[0_20px_35px_-30px_rgba(15,23,42,0.7)]"
-                    : "text-white/80 hover:bg-white/10 hover:text-white"
-                )}
-              >
-                <span className="text-lg">{item.icon}</span>
-                <span>{item.label}</span>
-              </div>
-            ))}
+            {navItems.map((item) => {
+              const isActive =
+                typeof item.match === "function"
+                  ? item.match(location.pathname, location.search)
+                  : item.to
+                  ? location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
+                  : Boolean(item.active);
+
+              return (
+                <button
+                  type="button"
+                  key={item.key || item.label}
+                  onClick={() => handleNavClick(item)}
+                  className={cx(
+                    "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left font-medium transition",
+                    isActive
+                      ? "bg-white text-slate-900 shadow-[0_20px_35px_-30px_rgba(15,23,42,0.7)]"
+                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                  )}
+                >
+                  <span className="text-lg">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
           </nav>
 
           <div className="mt-auto rounded-2xl bg-white/15 p-5 backdrop-blur">

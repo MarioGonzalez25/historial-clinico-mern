@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Toaster, toast } from "react-hot-toast";
 import { CitasAPI } from "../../api/citas";
 
@@ -27,6 +27,7 @@ const formatDate = (iso) => {
 
 export default function ListaCitas() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [citas, setCitas] = useState([]);
   const [filters, setFilters] = useState({
@@ -78,6 +79,16 @@ export default function ListaCitas() {
     setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
+  const isOwnAgenda = (() => {
+    const scope = searchParams.get("mis");
+    return scope === "1" || scope === "true";
+  })();
+
+  const headerTitle = isOwnAgenda ? "Mis citas" : "Citas programadas";
+  const headerSubtitle = isOwnAgenda
+    ? "Consulta tu agenda personal, confirma pacientes y mantén actualizado el seguimiento clínico."
+    : "Consulta la agenda para confirmar asistencia, reagendar o registrar el seguimiento clínico de cada paciente.";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f4f3ff] via-[#eef2ff] to-[#fdf4ff]">
       <Toaster position="top-right" />
@@ -85,10 +96,8 @@ export default function ListaCitas() {
         <div className="rounded-3xl bg-white p-6 shadow-[0_30px_90px_-60px_rgba(79,70,229,0.55)] sm:p-10">
           <header className="space-y-3">
             <p className="text-sm font-semibold uppercase tracking-wide text-violet-500/80">Agenda</p>
-            <h1 className="text-3xl font-semibold text-slate-900">Citas programadas</h1>
-            <p className="text-sm text-slate-500">
-              Consulta la agenda para confirmar asistencia, reagendar o registrar el seguimiento clínico de cada paciente.
-            </p>
+            <h1 className="text-3xl font-semibold text-slate-900">{headerTitle}</h1>
+            <p className="text-sm text-slate-500">{headerSubtitle}</p>
           </header>
 
           <div className="mt-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
