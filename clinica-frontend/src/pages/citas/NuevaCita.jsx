@@ -122,8 +122,8 @@ export default function NuevaCita() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f1e5ff] via-[#f0f9ff] to-[#fef2ff]">
       <Toaster position="top-right" />
-      <div className="mx-auto w-full max-w-4xl px-4 py-12 sm:px-8 lg:px-12">
-        <div className="rounded-3xl bg-white p-6 shadow-[0_25px_80px_-50px_rgba(79,70,229,0.6)] sm:p-10">
+      <div className="mx-auto w-full max-w-4xl px-4 py-12 sm:px-6 lg:px-10 xl:px-12">
+        <div className="rounded-3xl bg-white p-6 shadow-[0_25px_80px_-50px_rgba(79,70,229,0.6)] sm:p-8 lg:p-10">
           <div className="space-y-2">
             <p className="text-sm font-semibold uppercase tracking-wide text-violet-500/80">Agenda clínica</p>
             <h1 className="text-3xl font-semibold text-slate-900">Agendar nueva cita</h1>

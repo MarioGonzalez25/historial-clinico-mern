@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Toaster, toast } from "react-hot-toast";
 import { PacientesAPI } from "../../api/pacientes";
 import { HistorialAPI } from "../../api/historial";
@@ -55,13 +55,19 @@ export default function ConsultarHistorial() {
     setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
-  const consultar = async () => {
+  const consultar = useCallback(async () => {
     if (!selectedPatient) return toast.error("Selecciona un paciente");
     try {
       setLoadingEntries(true);
       const params = {};
-      if (filters.from) params.from = new Date(filters.from).toISOString();
-      if (filters.to) params.to = new Date(filters.to).toISOString();
+      if (filters.from) {
+        const fromDate = new Date(`${filters.from}T00:00:00`);
+        params.from = fromDate.toISOString();
+      }
+      if (filters.to) {
+        const toDate = new Date(`${filters.to}T23:59:59.999`);
+        params.to = toDate.toISOString();
+      }
       const response = await HistorialAPI.listByPatient(selectedPatient, params);
       setEntries(response.items || []);
       setMeta({ total: response.total || 0, page: response.page || 1 });
@@ -72,13 +78,19 @@ export default function ConsultarHistorial() {
     } finally {
       setLoadingEntries(false);
     }
-  };
+  }, [filters.from, filters.to, selectedPatient]);
+
+  useEffect(() => {
+    if (!loadingPatients && selectedPatient) {
+      consultar();
+    }
+  }, [consultar, loadingPatients, selectedPatient]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f1f5ff] via-[#eef2ff] to-[#fdf4ff]">
       <Toaster position="top-right" />
-      <div className="mx-auto w-full max-w-5xl px-4 py-12 sm:px-8 lg:px-12">
-        <div className="rounded-3xl bg-white p-6 shadow-[0_30px_90px_-55px_rgba(79,70,229,0.5)] sm:p-10">
+      <div className="mx-auto w-full max-w-5xl px-4 py-12 sm:px-6 lg:px-10 xl:px-12">
+        <div className="rounded-3xl bg-white p-6 shadow-[0_30px_90px_-55px_rgba(79,70,229,0.5)] sm:p-8 lg:p-10">
           <header className="space-y-3">
             <p className="text-sm font-semibold uppercase tracking-wide text-indigo-500/80">Historial clínico</p>
             <h1 className="text-3xl font-semibold text-slate-900">Consultar historial</h1>

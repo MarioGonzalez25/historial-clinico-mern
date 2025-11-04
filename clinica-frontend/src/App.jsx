@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import Reset from "./pages/Reset";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import NuevoPaciente from "./pages/pacientes/NuevoPaciente";
+import EditarPaciente from "./pages/pacientes/EditarPaciente";
 import ListaPacientes from "./pages/pacientes/ListaPacientes";
 import NuevaCita from "./pages/citas/NuevaCita";
 import ConsultarHistorial from "./pages/historial/ConsultarHistorial";
@@ -48,6 +49,14 @@ export default function App() {
           element={(
             <ProtectedRoute roles={["ADMIN", "MEDICO", "ASISTENTE"]}>
               <NuevoPaciente />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/pacientes/:id/editar"
+          element={(
+            <ProtectedRoute roles={["ADMIN", "MEDICO"]}>
+              <EditarPaciente />
             </ProtectedRoute>
           )}
         />
