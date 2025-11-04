@@ -39,7 +39,7 @@ export default function ListaCitas() {
   const fetchCitas = useCallback(async () => {
     try {
       setLoading(true);
-      const params = { limit: 100 };
+      const params = {};
       if (filters.date) {
         const start = new Date(filters.date);
         start.setHours(0, 0, 0, 0);
