@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Toaster, toast } from "react-hot-toast";
 import { UsersAPI } from "../../api/users";
-import { AuthAPI } from "../../api/auth";
+import { useAuthStore } from "../../store/auth";
 
 const inputClasses =
   "block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-violet-300 focus:outline-none focus:ring-4 focus:ring-violet-100";
@@ -17,12 +17,26 @@ export default function Usuarios() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ nombre: "", email: "", password: "", rol: "ASISTENTE" });
+  const [editingUser, setEditingUser] = useState(null);
+  const [editForm, setEditForm] = useState({ nombre: "", email: "", rol: "ASISTENTE", password: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+
+  const currentUserId = useAuthStore((state) => state.user?.id ?? state.user?._id ?? null);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       const response = await UsersAPI.list();
-      setUsers(response.users || []);
+      const normalized = (response.users || []).map((user) => ({
+        id: user._id || user.id,
+        nombre: user.nombre,
+        email: user.email,
+        rol: user.rol,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      }));
+      setUsers(normalized);
     } catch (err) {
       console.error("[usuarios] list", err);
       const message = err?.response?.data?.error || err?.message || "No se pudieron cargar los usuarios";
@@ -48,7 +62,12 @@ export default function Usuarios() {
     if (!form.password || form.password.length < 8) return toast.error("La contraseña debe tener al menos 8 caracteres");
     try {
       setCreating(true);
-      await AuthAPI.register({ nombre: form.nombre.trim(), email: form.email.trim(), password: form.password, rol: form.rol });
+      await UsersAPI.create({
+        nombre: form.nombre.trim(),
+        email: form.email.trim(),
+        password: form.password,
+        rol: form.rol,
+      });
       toast.success("Usuario creado correctamente");
       setForm({ nombre: "", email: "", password: "", rol: "ASISTENTE" });
       fetchUsers();
@@ -64,14 +83,76 @@ export default function Usuarios() {
   const enrichedUsers = useMemo(
     () =>
       users.map((user) => ({
-        id: user._id || user.id,
-        nombre: user.nombre,
-        email: user.email,
-        rol: roleLabels[user.rol] || user.rol,
-        estado: "Activo",
+        ...user,
+        rolLabel: roleLabels[user.rol] || user.rol,
       })),
     [users]
   );
+
+  const openEdit = (user) => {
+    setEditingUser(user);
+    setEditForm({ nombre: user.nombre, email: user.email, rol: user.rol, password: "" });
+  };
+
+  const closeEdit = () => {
+    setEditingUser(null);
+    setEditForm({ nombre: "", email: "", rol: "ASISTENTE", password: "" });
+  };
+
+  const onEditChange = (event) => {
+    const { name, value } = event.target;
+    setEditForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const submitEdit = async (event) => {
+    event.preventDefault();
+    if (!editingUser) return;
+    if (!editForm.nombre.trim()) return toast.error("Ingresa el nombre completo");
+    if (!editForm.email.trim()) return toast.error("Ingresa el correo electrónico");
+
+    const payload = {
+      nombre: editForm.nombre.trim(),
+      email: editForm.email.trim(),
+      rol: editForm.rol,
+    };
+    if (editForm.password) {
+      if (editForm.password.length < 8) {
+        return toast.error("La contraseña debe tener al menos 8 caracteres");
+      }
+      payload.password = editForm.password;
+    }
+
+    try {
+      setSavingEdit(true);
+      await UsersAPI.update(editingUser.id, payload);
+      toast.success("Usuario actualizado correctamente");
+      closeEdit();
+      fetchUsers();
+    } catch (err) {
+      console.error("[usuarios] update", err);
+      const message = err?.response?.data?.error || err?.message || "No se pudo actualizar el usuario";
+      toast.error(message);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const deleteUser = async (user) => {
+    const confirmed = window.confirm(`¿Eliminar a ${user.nombre}? Esta acción no se puede deshacer.`);
+    if (!confirmed) return;
+    try {
+      setDeletingId(user.id);
+      await UsersAPI.remove(user.id);
+      toast.success("Usuario eliminado");
+      fetchUsers();
+    } catch (err) {
+      console.error("[usuarios] delete", err);
+      const message = err?.response?.data?.error || err?.message || "No se pudo eliminar el usuario";
+      toast.error(message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f1e5ff] via-[#eef2ff] to-[#fef3ff]">
@@ -123,6 +204,7 @@ export default function Usuarios() {
                 placeholder="Min. 8 caracteres"
                 className={inputClasses}
               />
+              <p className="text-xs font-normal text-slate-400">Incluye mayúsculas, minúsculas, números y símbolos.</p>
             </label>
             <label className="space-y-2 text-sm font-semibold text-slate-600">
               Rol
@@ -153,6 +235,7 @@ export default function Usuarios() {
                     <th className="px-6 py-4 font-semibold">Nombre</th>
                     <th className="px-6 py-4 font-semibold">Rol</th>
                     <th className="px-6 py-4 font-semibold">Correo</th>
+                    <th className="px-6 py-4 font-semibold text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/70 text-slate-600">
@@ -164,15 +247,34 @@ export default function Usuarios() {
                       <td className="px-6 py-4">
                         <span className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-600">
                           <span aria-hidden>●</span>
-                          {usuario.rol}
+                          {usuario.rolLabel}
                         </span>
                       </td>
                       <td className="px-6 py-4">{usuario.email}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(usuario)}
+                            className="rounded-lg border border-violet-200 px-3 py-1.5 text-xs font-semibold text-violet-600 transition hover:border-violet-300 hover:bg-violet-50"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteUser(usuario)}
+                            disabled={deletingId === usuario.id || usuario.id === currentUserId}
+                            className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-500 transition hover:border-rose-300 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {usuario.id === currentUserId ? "No disponible" : deletingId === usuario.id ? "Eliminando…" : "Eliminar"}
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                   {enrichedUsers.length === 0 && !loading && (
                     <tr>
-                      <td className="px-6 py-4 text-center text-sm text-slate-500" colSpan={3}>
+                      <td className="px-6 py-4 text-center text-sm text-slate-500" colSpan={4}>
                         No hay usuarios registrados.
                       </td>
                     </tr>
@@ -188,6 +290,89 @@ export default function Usuarios() {
           </div>
         </div>
       </div>
+
+      {editingUser && (
+        <div className="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/40 px-4 py-6">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Editar usuario</h3>
+                <p className="text-sm text-slate-500">Actualiza la información del colaborador seleccionado.</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeEdit}
+                className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              >
+                <span className="sr-only">Cerrar</span>×
+              </button>
+            </div>
+
+            <form onSubmit={submitEdit} className="mt-6 space-y-4">
+              <label className="block text-sm font-semibold text-slate-600">
+                Nombre completo
+                <input
+                  type="text"
+                  name="nombre"
+                  value={editForm.nombre}
+                  onChange={onEditChange}
+                  className={`${inputClasses} mt-2`}
+                />
+              </label>
+
+              <label className="block text-sm font-semibold text-slate-600">
+                Correo electrónico
+                <input
+                  type="email"
+                  name="email"
+                  value={editForm.email}
+                  onChange={onEditChange}
+                  className={`${inputClasses} mt-2`}
+                />
+              </label>
+
+              <label className="block text-sm font-semibold text-slate-600">
+                Rol
+                <select name="rol" value={editForm.rol} onChange={onEditChange} className={`${inputClasses} mt-2 text-slate-700`}>
+                  <option value="ASISTENTE">Asistente</option>
+                  <option value="MEDICO">Médico</option>
+                  <option value="ADMIN">Administrador</option>
+                </select>
+              </label>
+
+              <label className="block text-sm font-semibold text-slate-600">
+                Nueva contraseña (opcional)
+                <input
+                  type="password"
+                  name="password"
+                  value={editForm.password}
+                  onChange={onEditChange}
+                  placeholder="Dejar en blanco para mantener la actual"
+                  className={`${inputClasses} mt-2`}
+                />
+                <p className="mt-1 text-xs font-normal text-slate-400">Debe contener mayúsculas, minúsculas, números y símbolos.</p>
+              </label>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeEdit}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-500 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 transition hover:shadow-violet-500/40 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {savingEdit ? "Guardando…" : "Guardar cambios"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
