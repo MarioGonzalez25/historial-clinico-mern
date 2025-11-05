@@ -10,4 +10,8 @@ export const HistorialAPI = {
   create(payload) {
     return api.post("/historial", payload).then((r) => r.data);
   },
+
+  update(id, payload) {
+    return api.patch(`/historial/${id}`, payload).then((r) => r.data);
+  },
 };

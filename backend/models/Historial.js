@@ -32,10 +32,20 @@ const historialSchema = new Schema(
     notas: { type: String, trim: true },
     signosVitales: { type: signosVitalesSchema },
 
+    archivos: [
+      {
+        nombre: { type: String, trim: true },
+        tipo: { type: String },
+        tamano: Number,
+        dataUrl: { type: String },
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
+
     creadoPor: { type: Schema.Types.ObjectId, ref: 'User', required: true },
 
     // Soft-delete
-    deletedAt: { type: Date, default: null },
+    deletedAt: { type: Date },
     deletedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },

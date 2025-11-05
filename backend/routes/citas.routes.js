@@ -62,14 +62,16 @@ router.get('/',
   query('patientId').optional().isMongoId(),
   query('estado').optional().isIn(['PENDIENTE','CONFIRMADA','ATENDIDA','CANCELADA','NO_ASISTIO']),
   query('page').optional().isInt({ min: 1 }),
-  query('limit').optional().isInt({ min: 1, max: 100 }),
+  query('limit').optional().isInt({ min: 0 }),
   query('sort').optional().isString(), // ej: inicio:asc | fin:desc
   handle,
   async (req, res, next) => {
     try {
       const { from, to, doctorId, patientId, estado } = req.query;
-      const page  = Number(req.query.page ?? 1);
-      const limit = Number(req.query.limit ?? 10);
+      const page = Number(req.query.page ?? 1);
+      const requestedLimit = req.query.limit === undefined ? undefined : Number(req.query.limit);
+      const hasLimit = Number.isFinite(requestedLimit) && requestedLimit > 0;
+      const limit = hasLimit ? requestedLimit : 0;
       const [sf, sd = 'asc'] = String(req.query.sort ?? 'inicio:asc').split(':');
 
       const q = { isDeleted: false };
@@ -82,17 +84,25 @@ router.get('/',
         if (to)   q.inicio.$lte = new Date(to);
       }
 
-      const skip = (page - 1) * limit;
+      const skip = hasLimit ? (page - 1) * limit : 0;
+      const query = Cita.find(q)
+        .sort({ [sf]: sd === 'desc' ? -1 : 1 })
+        .populate('patientId','nombreCompleto telefono')
+        .populate('doctorId','nombre');
+      if (hasLimit) {
+        query.skip(skip).limit(limit);
+      }
+
       const [data, total] = await Promise.all([
-        Cita.find(q)
-          .sort({ [sf]: sd === 'desc' ? -1 : 1 })
-          .skip(skip).limit(limit)
-          .populate('patientId','nombreCompleto telefono')
-          .populate('doctorId','nombre'),
+        query,
         Cita.countDocuments(q)
       ]);
 
-      res.json({ data, page, limit, total, totalPages: Math.ceil(total / limit) });
+      const responseLimit = hasLimit ? limit : null;
+      const responsePage = hasLimit ? page : 1;
+      const totalPages = hasLimit && limit > 0 ? Math.ceil(total / limit) : 1;
+
+      res.json({ data, page: responsePage, limit: responseLimit, total, totalPages });
     } catch (err) { next(err); }
   }
 );

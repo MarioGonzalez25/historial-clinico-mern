@@ -21,11 +21,20 @@ import { requireAuth } from './middleware/auth.js';
 
 const app = express();
 app.set('trust proxy', 1);
+app.disable('etag');
 
 /* -------- Seguridad base -------- */
 app.disable('x-powered-by');
-app.use(express.json({ limit: '20kb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(helmet());
+app.use((req, res, next) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
+  });
+  next();
+});
 
 /* -------- CORS -------- */
 const allowed = (process.env.CORS_ORIGINS || '')

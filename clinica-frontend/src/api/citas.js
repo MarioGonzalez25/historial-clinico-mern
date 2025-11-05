@@ -14,4 +14,12 @@ export const CitasAPI = {
   updateEstado(id, estado) {
     return api.patch(`/citas/${id}/estado`, { estado }).then((r) => r.data);
   },
+
+  reprogramar(id, payload) {
+    return api.patch(`/citas/${id}/reprogramar`, payload).then((r) => r.data);
+  },
+
+  remove(id) {
+    return api.delete(`/citas/${id}`).then((r) => r.data);
+  },
 };

@@ -5,6 +5,57 @@ import Paciente from '../models/Paciente.js';
 import { requireAuth } from '../middleware/auth.js';
 import { authorize } from '../middleware/authorize.js';
 
+const ARCHIVO_TIPOS_PERMITIDOS = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']);
+const ARCHIVO_MAX_TAMANO = 2 * 1024 * 1024; // 2MB
+const ARCHIVO_MAX_CANTIDAD = 5;
+
+const parseArchivos = (rawArchivos = []) => {
+  if (!rawArchivos) return [];
+  let archivos = rawArchivos;
+  if (typeof rawArchivos === 'string') {
+    try {
+      archivos = JSON.parse(rawArchivos);
+    } catch {
+      throw new Error('El formato de los archivos adjuntos es inválido');
+    }
+  }
+
+  if (!Array.isArray(archivos)) throw new Error('archivos debe ser una lista');
+  if (archivos.length > ARCHIVO_MAX_CANTIDAD) throw new Error(`Solo puedes adjuntar hasta ${ARCHIVO_MAX_CANTIDAD} archivos`);
+
+  return archivos.map((archivo) => {
+    if (!archivo || typeof archivo !== 'object') {
+      throw new Error('Cada archivo adjunto debe incluir nombre, tipo, tamaño y dataUrl');
+    }
+    const { nombre, tipo, tamano, dataUrl } = archivo;
+    if (!nombre || !tipo || typeof tamano !== 'number' || !dataUrl) {
+      throw new Error('Cada archivo adjunto debe incluir nombre, tipo, tamaño y dataUrl');
+    }
+    if (!ARCHIVO_TIPOS_PERMITIDOS.has(tipo)) {
+      throw new Error('Formato de archivo no permitido. Usa JPG, PNG, WEBP, GIF o PDF.');
+    }
+    if (tamano > ARCHIVO_MAX_TAMANO) {
+      throw new Error('Cada archivo debe pesar máximo 2MB');
+    }
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) {
+      throw new Error('El archivo debe enviarse en formato base64 (data URL)');
+    }
+
+    let uploadedAt = archivo.uploadedAt ? new Date(archivo.uploadedAt) : new Date();
+    if (Number.isNaN(uploadedAt.getTime())) {
+      uploadedAt = new Date();
+    }
+
+    return {
+      nombre: nombre.slice(0, 150),
+      tipo,
+      tamano,
+      dataUrl,
+      uploadedAt,
+    };
+  });
+};
+
 const router = Router();
 
 // Crear (ADMIN | MEDICO)
@@ -21,9 +72,25 @@ router.post('/', requireAuth, authorize('ADMIN', 'MEDICO'), async (req, res) => 
     const paciente = await Paciente.findById(patientId).select('_id').lean();
     if (!paciente) return res.status(404).json({ error: 'Paciente no encontrado' });
 
-    const fechaISO = new Date(fecha);
+    const fechaISO = fecha ? new Date(fecha) : new Date();
     if (isNaN(fechaISO.getTime())) {
       return res.status(400).json({ error: 'fecha debe ser ISO válida (ej. 2025-09-26T14:30:00Z)' });
+    }
+
+    let archivos = [];
+    try {
+      archivos = parseArchivos(req.body.archivos);
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+
+    let parsedSignos = signosVitales;
+    if (typeof signosVitales === 'string') {
+      try {
+        parsedSignos = JSON.parse(signosVitales);
+      } catch {
+        return res.status(400).json({ error: 'signosVitales debe ser JSON válido' });
+      }
     }
 
     // Anti-doble-click: solo cuenta si NO está borrado
@@ -39,7 +106,8 @@ router.post('/', requireAuth, authorize('ADMIN', 'MEDICO'), async (req, res) => 
       diagnostico: diagnostico.trim(),
       tratamiento: tratamiento.trim(),
       notas,
-      signosVitales,
+      signosVitales: parsedSignos,
+      archivos,
       creadoPor: req.user.id
     });
 
@@ -62,23 +130,35 @@ router.get('/', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'patientId no es un ObjectId válido' });
     }
 
-    const q = { patientId, deletedAt: { $exists: false } };
+    const q = {
+      patientId,
+      $or: [{ deletedAt: { $exists: false } }, { deletedAt: null }],
+    };
     if (from || to) {
       q.fecha = {};
       if (from) q.fecha.$gte = new Date(from);
       if (to)   q.fecha.$lte = new Date(to);
     }
 
-    const pg = Math.max(1, parseInt(page));
-    const lim = Math.min(100, Math.max(1, parseInt(limit)));
-    const skip = (pg - 1) * lim;
+    const parsedPage = parseInt(page, 10);
+    const pg = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
+
+    const parsedLimit = parseInt(limit, 10);
+    let lim = Number.isNaN(parsedLimit) ? 200 : parsedLimit;
+    if (lim > 0) lim = Math.min(200, Math.max(1, lim));
+    const skip = lim > 0 ? (pg - 1) * lim : 0;
+
+    const findQuery = Historial.find(q).sort({ fecha: -1, createdAt: -1 });
+    if (lim > 0) findQuery.skip(skip).limit(lim);
 
     const [items, total] = await Promise.all([
-      Historial.find(q).sort({ fecha: -1, createdAt: -1 }).skip(skip).limit(lim).lean(),
+      findQuery.lean(),
       Historial.countDocuments(q)
     ]);
 
-    res.json({ total, page: pg, pages: Math.ceil(total / lim) || 1, items });
+    const pages = lim > 0 ? Math.ceil(total / lim) || 1 : 1;
+
+    res.json({ total, page: pg, pages, items });
   } catch (err) {
     console.error('GET /api/historial error', err);
     res.status(500).json({ error: 'Error al listar historial' });
@@ -98,18 +178,26 @@ router.patch('/:id', requireAuth, authorize('ADMIN', 'MEDICO'), async (req, res)
     const esCreador = String(doc.creadoPor) === String(req.user.id);
     if (!esAdmin && !esCreador) return res.status(403).json({ error: 'Sin permiso para editar este historial' });
 
-    const permitidos = ['diagnostico', 'tratamiento', 'notas', 'signosVitales', 'fecha'];
+    const permitidos = ['motivoConsulta', 'diagnostico', 'tratamiento', 'notas', 'signosVitales', 'fecha'];
     for (const k of permitidos) {
       if (k in req.body) {
         if (k === 'fecha') {
           const f = new Date(req.body.fecha);
           if (isNaN(f.getTime())) return res.status(400).json({ error: 'fecha debe ser ISO válida' });
           doc.fecha = f;
-        } else if (k === 'diagnostico' || k === 'tratamiento') {
+        } else if (k === 'diagnostico' || k === 'tratamiento' || k === 'motivoConsulta') {
           doc[k] = String(req.body[k]).trim();
         } else {
           doc[k] = req.body[k];
         }
+      }
+    }
+
+    if ('archivos' in req.body) {
+      try {
+        doc.archivos = parseArchivos(req.body.archivos);
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
       }
     }
     doc.updatedBy = req.user.id;

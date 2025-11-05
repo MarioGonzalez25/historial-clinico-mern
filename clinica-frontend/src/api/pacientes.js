@@ -14,4 +14,12 @@ export const PacientesAPI = {
   get(id) {
     return api.get(`/pacientes/${id}`).then((r) => r.data);
   },
+
+  update(id, payload) {
+    return api.put(`/pacientes/${id}`, payload).then((r) => r.data);
+  },
+
+  remove(id) {
+    return api.delete(`/pacientes/${id}`).then((r) => r.data);
+  },
 };

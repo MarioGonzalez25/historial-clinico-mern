@@ -5,6 +5,8 @@ import Dashboard from "./pages/Dashboard";
 import Reset from "./pages/Reset";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import NuevoPaciente from "./pages/pacientes/NuevoPaciente";
+import EditarPaciente from "./pages/pacientes/EditarPaciente";
+import ListaPacientes from "./pages/pacientes/ListaPacientes";
 import NuevaCita from "./pages/citas/NuevaCita";
 import ConsultarHistorial from "./pages/historial/ConsultarHistorial";
 import RegistrarEvolucion from "./pages/historial/RegistrarEvolucion";
@@ -12,6 +14,7 @@ import Usuarios from "./pages/usuarios/Usuarios";
 import Reportes from "./pages/reportes/Reportes";
 import NotasRapidas from "./pages/notas/NotasRapidas";
 import ListaCitas from "./pages/citas/ListaCitas";
+import Configuracion from "./pages/configuracion/Configuracion";
 
 export default function App() {
   return (
@@ -33,10 +36,26 @@ export default function App() {
           )}
         />
         <Route
+          path="/pacientes"
+          element={(
+            <ProtectedRoute roles={["ADMIN", "MEDICO", "ASISTENTE"]}>
+              <ListaPacientes />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
           path="/pacientes/nuevo"
           element={(
             <ProtectedRoute roles={["ADMIN", "MEDICO", "ASISTENTE"]}>
               <NuevoPaciente />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/pacientes/:id/editar"
+          element={(
+            <ProtectedRoute roles={["ADMIN", "MEDICO"]}>
+              <EditarPaciente />
             </ProtectedRoute>
           )}
         />
@@ -91,8 +110,16 @@ export default function App() {
         <Route
           path="/reportes"
           element={(
-            <ProtectedRoute roles={["ADMIN"]}>
+            <ProtectedRoute roles={["ADMIN", "MEDICO"]}>
               <Reportes />
+            </ProtectedRoute>
+          )}
+        />
+        <Route
+          path="/configuracion"
+          element={(
+            <ProtectedRoute roles={["ADMIN"]}>
+              <Configuracion />
             </ProtectedRoute>
           )}
         />
