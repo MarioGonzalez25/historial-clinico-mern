@@ -20,11 +20,13 @@ import usersRoutes from './routes/users.routes.js';
 import { requireAuth } from './middleware/auth.js';
 
 const app = express();
+
+/* -------- Recomendado para App Platform (Nginx delante) -------- */
 app.set('trust proxy', 1);
 app.disable('etag');
-
-/* -------- Seguridad base -------- */
 app.disable('x-powered-by');
+
+/* -------- Seguridad y parseo -------- */
 app.use(express.json({ limit: '10mb' }));
 app.use(helmet());
 app.use((req, res, next) => {
@@ -36,12 +38,22 @@ app.use((req, res, next) => {
   next();
 });
 
-/* -------- CORS -------- */
+/* -------- CORS --------
+   Define CORS_ORIGINS en el entorno, separado por comas.
+   Ejemplo:
+   CORS_ORIGINS=https://historial-clinico-backend-xxxxx.ondigitalocean.app, http://localhost:5173
+*/
 const allowed = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
-app.use(cors({ origin: allowed.length ? allowed : true, credentials: true }));
+
+app.use(
+  cors({
+    origin: allowed.length ? allowed : true,
+    credentials: true,
+  })
+);
 
 /* -------- Logs -------- */
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
@@ -49,10 +61,13 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 /* -------- Rate limit global -------- */
 app.use(globalLimiter);
 
-const isDevelopment = process.env.NODE_ENV === 'development';
+/* -------- Rate limit específico login -------- */
+const isDev = process.env.NODE_ENV === 'development';
 const loginLimiter = rateLimit({
-  windowMs: isDevelopment ? 60 * 1000 : 10 * 60 * 1000,
-  max: isDevelopment ? 50 : 5,
+  windowMs: isDev ? 60 * 1000 : 10 * 60 * 1000, // 1 min en dev, 10 min en prod
+  max: isDev ? 50 : 5,
+  standardHeaders: true,
+  legacyHeaders: false,
   skipSuccessfulRequests: true,
 });
 
@@ -62,14 +77,14 @@ app.get('/api/health', (req, res) => {
     ok: true,
     msg: 'API Clínica funcionando',
     ip: req.ip,
-    viaProxy: app.get('trust proxy') || 0
+    viaProxy: app.get('trust proxy') || 0,
   });
 });
 
-/* -------- Rutas públicas -------- */
-app.get('/', (req, res) => res.json({ ok: true, msg: 'API Clínica funcionando' }));
+/* -------- Raíz (opcional) -------- */
+app.get('/', (_req, res) => res.json({ ok: true, msg: 'API Clínica funcionando' }));
 
-/* -------- Rutas API (todas con prefijo /api) -------- */
+/* -------- Rutas API (todas bajo /api) -------- */
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/pacientes', pacientesRoutes);
@@ -78,23 +93,27 @@ app.use('/api/historial', historialRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/users', usersRoutes);
 
-// Ejemplo privado
+/* -------- Ejemplo de ruta privada -------- */
 app.get('/private/hello', requireAuth, (req, res) => {
   res.json({ msg: `Hola ${req.user.email}` });
 });
 
 /* -------- Manejo de errores -------- */
-app.use((err, req, res, next) => {
+app.use((err, _req, res, _next) => {
   console.error(err);
   res.status(err.status || 500).json({ error: err.message || 'Error interno' });
 });
 
 /* -------- Arranque -------- */
-const PORT = process.env.PORT || 8080; // 8080 recomendado para DO
+const PORT = process.env.PORT || 8080; // 8080 recomendado por DO
+
 const start = async () => {
   await connectDB(process.env.MONGO_URI);
   app.listen(PORT, () => {
-    console.log(`✅ Servidor escuchando en http://localhost:${PORT} (env: ${process.env.NODE_ENV || 'dev'})`);
+    console.log(
+      `✅ Servidor escuchando en http://localhost:${PORT} (env: ${process.env.NODE_ENV || 'development'})`
+    );
   });
 };
+
 start();
