@@ -1,8 +1,8 @@
-// controllers/auth.controller.js
+// backend/controllers/auth.controller.js
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import User from '../models/User.js';
-import { sendResetEmail } from '../utils/sendEmail.js'; // envío de email (SMTP o Ethereal)
+import { sendResetEmail } from '../utils/sendEmail.js'; // usa SMTP real (Gmail)
 
 const signToken = (user) =>
   jwt.sign(
@@ -64,7 +64,7 @@ export const forgotPassword = async (req, res) => {
 
     const user = await User.findOne({ email });
 
-    // Respuesta uniforme (no revelar si existe o no el correo)
+    // Respuesta uniforme (no revelar si existe o no)
     if (!user) {
       return res.status(200).json({
         message:
@@ -76,35 +76,18 @@ export const forgotPassword = async (req, res) => {
     const rawToken = user.createPasswordResetToken();
     await user.save({ validateBeforeSave: false });
 
-    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-    const resetLink = `${clientUrl}/reset-password?token=${rawToken}`;
+    // URL base del frontend (PROD o LOCAL). NO pongas slash al final en la env.
+    const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
+    // Ruta del cliente: /reset-password?token=...&email=...
+    const resetLink = `${clientUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
 
-    // Intentar enviar correo; si falla, permitimos continuar (modo dev) con debug
-    let emailMeta = null;
-    try {
-      emailMeta = await sendResetEmail({ to: user.email, resetLink });
-    } catch (mailErr) {
-      console.error('Error enviando correo (se permite continuar):', mailErr);
-      emailMeta = { error: 'send_failed' };
-    }
+    // Enviar correo
+    await sendResetEmail({ to: user.email, resetLink });
 
-    const payload = {
+    return res.status(200).json({
       message:
         'Si el correo existe, te hemos enviado un enlace para restablecer la contraseña.',
-    };
-
-    // En desarrollo, expón info útil para pruebas
-    if (process.env.NODE_ENV !== 'production') {
-      payload.debug = {
-        resetToken: rawToken,
-        resetLink,
-        expiresAt: user.passwordResetExpires,
-        emailSend: emailMeta?.error ? 'skipped' : 'sent',
-        previewUrl: emailMeta?.previewUrl || null, // si usó Ethereal, abre este link
-      };
-    }
-
-    return res.status(200).json(payload);
+    });
   } catch (err) {
     console.error('forgotPassword error:', err);
     return res.status(500).json({ message: 'Error al procesar la solicitud.' });
@@ -138,7 +121,7 @@ export const resetPassword = async (req, res) => {
         .json({ message: 'Token inválido o expirado. Solicita uno nuevo.' });
     }
 
-    // Guardar nueva contraseña (pre('save') hace hash y marca passwordChangedAt)
+    // Guardar nueva contraseña
     user.password = password;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
@@ -182,7 +165,7 @@ export const changePassword = async (req, res) => {
     if (!ok) return res.status(400).json({ message: 'Contraseña actual incorrecta.' });
 
     user.password = newPassword;
-    await user.save(); // re-hash + set passwordChangedAt
+    await user.save();
 
     const tokenJwt = signToken(user);
     return res
